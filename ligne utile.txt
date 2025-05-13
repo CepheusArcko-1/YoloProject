@@ -1,0 +1,6 @@
+http://127.0.0.1:5500/templates/index.html
+
+python "C:\DEV\yolo_app\app.py"
+
+pip install -r "C:\DEV\yolo_app\requirements.txt"
+
