@@ -8,8 +8,11 @@ model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
 def detect_image(image_path, output_folder):
     results = model(image_path)
 
-    annotated_image_path = os.path.join(output_folder, os.path.basename(image_path))
-    results.render()[0].save(annotated_image_path)
+    annotated_image = results.render()[0] 
+
+    output_image_path = os.path.join(output_folder, os.path.basename(image_path))
+
+    cv2.imwrite(output_image_path, annotated_image)
 
     parsed_results = []
     for result in results.xyxy:
@@ -20,6 +23,7 @@ def detect_image(image_path, output_folder):
                 'bounding_box': [float(x) for x in box]
             })
     return parsed_results
+
 
 
 def detect_webcam():
