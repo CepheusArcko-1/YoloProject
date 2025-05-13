@@ -25,10 +25,10 @@ def index():
 
     return render_template('index.html', image=None)
 
-@app.route('/start-video')
-def start_video():
-    detect_webcam()
-    return "Video stream finished. Close window to return."
+#@app.route('/start-video')
+#def start_video():
+#    detect_webcam()
+#    return "Video stream finished. Close window to return."
 
 @app.route('/static/results/<filename>')
 def uploaded_file(filename):
