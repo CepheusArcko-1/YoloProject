@@ -12,13 +12,15 @@ def detect_image(image_path, output_folder):
     results.save(save_dir=output_folder)
 
     parsed_results = []
-    for *box, conf, cls in results.xyxy[0]:
-        parsed_results.append({
-            'class': results.names[int(cls)],
-            'confidence': float(conf),
-            'bounding_box': [float(x) for x in box]
-        })
+    for result in results.xyxy:
+        for *box, conf, cls in result:
+            parsed_results.append({
+                'class': model.names[int(cls)],
+                'confidence': float(conf),
+                'bounding_box': [float(x) for x in box]
+            })
     return parsed_results
+
 
 def detect_webcam():
     cap = cv2.VideoCapture(0)
