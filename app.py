@@ -4,6 +4,7 @@ from flask import Flask, request, render_template, send_from_directory
 from detect_utils import detect_image, detect_webcam
 
 app = Flask(__name__)
+
 UPLOAD_FOLDER = 'static/results'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -15,10 +16,13 @@ def index():
             filepath = os.path.join(UPLOAD_FOLDER, file.filename)
             file.save(filepath)
             detections = detect_image(filepath, UPLOAD_FOLDER)
-            json_path = os.path.splitext(filepath)[0] + '.json'
+
+            json_path = os.path.join(UPLOAD_FOLDER, os.path.splitext(file.filename)[0] + '.json')
             with open(json_path, 'w') as f:
-                json.dump(detections, f, indent=2)
+                json.dump(detections or [], f, indent=2)
+            print("Detections:", detections)
             return render_template('index.html', image=file.filename, json_file=os.path.basename(json_path))
+
     return render_template('index.html', image=None)
 
 @app.route('/start-video')

@@ -1,15 +1,15 @@
 import torch
 import json
 import os
-from pathlib import Path
-from PIL import Image
 import cv2
 
 model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
 
 def detect_image(image_path, output_folder):
     results = model(image_path)
-    results.save(save_dir=output_folder)
+
+    annotated_image_path = os.path.join(output_folder, os.path.basename(image_path))
+    results.render()[0].save(annotated_image_path)
 
     parsed_results = []
     for result in results.xyxy:
