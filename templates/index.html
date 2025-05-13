@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>YOLO Object Detection</title>
+</head>
+<body>
+    <h1>YOLOv8 Object Detection</h1>
+    <form method="post" enctype="multipart/form-data">
+        <input type="file" name="image" accept="image/*" required>
+        <button type="submit">Detect Objects in Image</button>
+    </form>
+
+    {% if image %}
+        <h2>Detected Objects:</h2>
+        <img src="{{ url_for('uploaded_file', filename=image) }}" width="600">
+    {% endif %}
+</body>
+</html>
