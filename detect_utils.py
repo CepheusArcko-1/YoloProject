@@ -1,0 +1,36 @@
+import torch
+import json
+import os
+from pathlib import Path
+from PIL import Image
+import cv2
+
+model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
+
+def detect_image(image_path, output_folder):
+    results = model(image_path)
+    results.save(save_dir=output_folder)
+
+    parsed_results = []
+    for *box, conf, cls in results.xyxy[0]:
+        parsed_results.append({
+            'class': results.names[int(cls)],
+            'confidence': float(conf),
+            'bounding_box': [float(x) for x in box]
+        })
+    return parsed_results
+
+def detect_webcam():
+    cap = cv2.VideoCapture(0)
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+        results = model(frame)
+        annotated_frame = results.render()[0]
+        cv2.imshow('YOLOv5 Webcam Detection', annotated_frame)
+
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+    cap.release()
+    cv2.destroyAllWindows()

@@ -1,19 +1,23 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>YOLO Object Detection</title>
+    <title>YOLOv5 Object Detection</title>
 </head>
 <body>
-    <h1>YOLOv8 Object Detection</h1>
+    <h1>YOLOv5 Object Detection</h1>
     <form method="post" enctype="multipart/form-data">
         <input type="file" name="image" accept="image/*" required>
         <button type="submit">Detect Objects in Image</button>
     </form>
 
+    <form action="/start-video" method="get">
+        <button type="submit">Start Real-Time Video Detection</button>
+    </form>
+
     {% if image %}
-        <h2>Detected Objects:</h2>
+        <h2>Results:</h2>
         <img src="{{ url_for('uploaded_file', filename=image) }}" width="600">
+        <p><a href="{{ url_for('uploaded_file', filename=json_file) }}" target="_blank">View JSON Results</a></p>
     {% endif %}
 </body>
 </html>

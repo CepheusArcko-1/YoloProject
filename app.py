@@ -1,6 +1,7 @@
 import os
+import json
 from flask import Flask, request, render_template, send_from_directory
-from yolov8_model import detect_objects
+from detect_utils import detect_image, detect_webcam
 
 app = Flask(__name__)
 UPLOAD_FOLDER = 'static/results'
@@ -11,11 +12,19 @@ def index():
     if request.method == 'POST':
         file = request.files['image']
         if file:
-            image_path = os.path.join(UPLOAD_FOLDER, file.filename)
-            file.save(image_path)
-            detect_objects(image_path, UPLOAD_FOLDER)
-            return render_template('index.html', image=file.filename)
+            filepath = os.path.join(UPLOAD_FOLDER, file.filename)
+            file.save(filepath)
+            detections = detect_image(filepath, UPLOAD_FOLDER)
+            json_path = os.path.splitext(filepath)[0] + '.json'
+            with open(json_path, 'w') as f:
+                json.dump(detections, f, indent=2)
+            return render_template('index.html', image=file.filename, json_file=os.path.basename(json_path))
     return render_template('index.html', image=None)
+
+@app.route('/start-video')
+def start_video():
+    detect_webcam()
+    return "Video stream finished. Close window to return."
 
 @app.route('/static/results/<filename>')
 def uploaded_file(filename):
