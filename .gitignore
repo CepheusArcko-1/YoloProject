@@ -1,18 +1,13 @@
 # Python
 __pycache__/
 *.py[cod]
-.venv/
 
 # IDE
 .idea/
 
-# Modele YOLO (telecharge automatiquement)
-*.pt
-
-# Genere par l'application
-static/results/
-application.log
-installation.log
+# Généré par l'installation et l'application (voir yolo_detection/paths.py)
+.venv/
+data/
 
 # Compilation PyInstaller
 build/
