@@ -12,4 +12,8 @@ __pycache__/
 # Genere par l'application
 static/results/
 application.log
-*.lnk
+installation.log
+
+# Compilation PyInstaller
+build/
+*.spec
