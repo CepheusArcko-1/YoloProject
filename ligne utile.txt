@@ -1,6 +1,5 @@
-http://127.0.0.1:5500/templates/index.html
+http://127.0.0.1:5000
 
-python "C:\DEV\yolo_app\app.py"
+.venv\Scripts\python app.py
 
-pip install -r "C:\DEV\yolo_app\requirements.txt"
-
+.venv\Scripts\python -m pip install -r requirements.txt

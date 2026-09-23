@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>YOLOv5 Object Detection</title>
+    <meta charset="utf-8">
+    <title>YOLO26 Object Detection</title>
 </head>
 <body>
-    <h1>YOLOv5 Object Detection</h1>
+    <h1>YOLO26 Object Detection</h1>
     <form method="post" enctype="multipart/form-data">
         <input type="file" name="image" accept="image/*" required>
         <button type="submit">Detect Objects in Image</button>
@@ -17,6 +18,13 @@
     {% if image %}
         <h2>Results:</h2>
         <img src="{{ url_for('uploaded_file', filename=image) }}" width="600">
+        <ul>
+        {% for d in detections %}
+            <li>{{ d['class'] }} ({{ '%.0f' % (d['confidence'] * 100) }}%)</li>
+        {% else %}
+            <li>Aucun objet détecté</li>
+        {% endfor %}
+        </ul>
         <p><a href="{{ url_for('uploaded_file', filename=json_file) }}" target="_blank">View JSON Results</a></p>
     {% endif %}
 </body>
