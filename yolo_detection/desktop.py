@@ -19,6 +19,8 @@ sys.stdout = sys.stderr = open(paths.APPLICATION_LOG, 'w', encoding='utf-8', buf
 
 import webview
 
+# Permet d'enregistrer l'image annotée, le CSV et le JSON (boîte de dialogue « Enregistrer sous »)
+webview.settings['ALLOW_DOWNLOADS'] = True
 
 LOADING_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"><style>
 :root { --bg: #f5f6f8; --text: #16181d; --muted: #6b7280; --track: #e3e6ea; --accent: #4f46e5; }
@@ -75,12 +77,15 @@ def start_server(window):
     # Import lourd (torch, modèle) fait pendant que l'écran de chargement est affiché
     try:
         from werkzeug.serving import make_server
-        from yolo_detection.server import app
+        from yolo_detection.detection import warm_up
+        from yolo_detection.server import app, load_settings
         # Permet à la désinstallation de fermer la fenêtre (après avoir répondu à la page)
         app.config['QUIT_APP'] = lambda: threading.Timer(0.5, window.destroy).start()
         server = make_server('127.0.0.1', 0, app, threaded=True)
         threading.Thread(target=server.serve_forever, daemon=True).start()
         window.load_url(f'http://127.0.0.1:{server.server_port}/')
+        # Le modèle se charge en arrière-plan pendant que l'utilisateur choisit son image
+        threading.Thread(target=warm_up, args=(load_settings()['model'],), daemon=True).start()
     except Exception as e:
         print(f'Erreur au démarrage : {e!r}')
         window.load_html(f'<p style="font-family:Segoe UI">Erreur au démarrage : {e}</p>'

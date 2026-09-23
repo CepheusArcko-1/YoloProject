@@ -4,20 +4,35 @@
 Compilé en « YOLO Detection.exe » (voir README). N'utilise que la bibliothèque standard.
 """
 import ctypes
+import glob
 import hashlib
 import os
 import queue
 import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import tkinter as tk
+import urllib.error
+import urllib.request
+import zipfile
 from tkinter import ttk, messagebox
 
 from yolo_detection import paths, uninstall
 
 FROZEN = getattr(sys, 'frozen', False)
 NO_WINDOW = subprocess.CREATE_NO_WINDOW
+
+# Python embarqué officiel et pip, vérifiés par leur empreinte SHA-256 (publiées par python.org et PyPI)
+PYTHON_VERSION = '3.14.7'
+PYTHON_URL = f'https://www.python.org/ftp/python/{PYTHON_VERSION}/python-{PYTHON_VERSION}-embed-amd64.zip'
+PYTHON_SHA256 = 'd297e5ff019966817ad8502465176139f2d3d840fa4ed84b13bed399a6ab1f15'
+PIP_URL = ('https://files.pythonhosted.org/packages/f3/6e/1736e5b4ae2b778ef2f81c47d797de9f891d4d8acb047a24ca37a60294dd/'
+           'pip-26.2.1-py3-none-any.whl')
+PIP_SHA256 = '71138adf1f4ca900cdb7d289c21b7494329f2332b6d85f0e1c42108c0384ed3e'
+# PyTorch avec prise en charge des cartes NVIDIA (CUDA 12.6 : compatible avec la plupart des pilotes)
+TORCH_CUDA_INDEX = 'https://download.pytorch.org/whl/cu126'
 
 
 def windows_dark_mode():
@@ -45,11 +60,26 @@ def requirements_hash():
         return hashlib.sha256(f.read()).hexdigest()
 
 
+def install_signature():
+    """Change quand les composants ou la version de Python changent : l'installation est alors refaite."""
+    return f'{requirements_hash()} python-{PYTHON_VERSION}'
+
+
 def is_installed():
-    if not (os.path.exists(paths.VENV_PYTHONW) and os.path.exists(paths.INSTALLED_MARKER)):
+    if not (os.path.exists(paths.RUNTIME_PYTHONW) and os.path.exists(paths.INSTALLED_MARKER)):
         return False
     with open(paths.INSTALLED_MARKER) as f:
-        return f.read().strip() == requirements_hash()
+        return f.read().strip() == install_signature()
+
+
+def has_nvidia_gpu():
+    try:
+        out = subprocess.run(['powershell', '-NoProfile', '-Command',
+                              '(Get-CimInstance Win32_VideoController).Name'],
+                             capture_output=True, text=True, creationflags=NO_WINDOW, timeout=30).stdout
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return 'nvidia' in out.lower()
 
 
 def launch_application():
@@ -57,20 +87,8 @@ def launch_application():
     # sinon elle ne pourrait pas relancer l'exécutable plus tard (désinstallation)
     env = {k: v for k, v in os.environ.items() if not k.startswith('_PYI')}
     env['PYINSTALLER_RESET_ENVIRONMENT'] = '1'
-    subprocess.Popen([paths.VENV_PYTHONW, '-m', 'yolo_detection.desktop'], cwd=paths.ROOT, env=env,
+    subprocess.Popen([paths.RUNTIME_PYTHONW, '-m', 'yolo_detection.desktop'], cwd=paths.ROOT, env=env,
                      creationflags=NO_WINDOW)
-
-
-def find_python():
-    for cmd in (['py', '-3'], ['python']):
-        if not shutil.which(cmd[0]):
-            continue
-        check = subprocess.run(cmd + ['-c', 'import sys; print(sys.version_info >= (3, 10))'],
-                               capture_output=True, text=True, creationflags=NO_WINDOW)
-        if check.stdout.strip() == 'True':
-            return cmd
-    raise RuntimeError("Python 3.10 ou plus récent est introuvable.\n"
-                       "Installez-le depuis https://www.python.org puis relancez l'application.")
 
 
 class ThemedWindow:
@@ -183,7 +201,7 @@ class ThemedWindow:
 
 class Installer(ThemedWindow):
     STEPS = [
-        ('Préparation de Python', 'create_venv'),
+        ('Téléchargement de Python', 'install_python'),
         ('Installation des composants (quelques minutes)', 'install_requirements'),
         ('Téléchargement du modèle YOLO26', 'download_model'),
         ('Création du raccourci sur le Bureau', 'create_shortcut'),
@@ -191,6 +209,7 @@ class Installer(ThemedWindow):
 
     def __init__(self):
         super().__init__('YOLO Detection — Installation', '520x400')
+        self.tmp = tempfile.TemporaryDirectory()
         t = THEME
         self.current = -1
         os.makedirs(paths.LOGS, exist_ok=True)
@@ -257,14 +276,19 @@ class Installer(ThemedWindow):
             for index, (_, method) in enumerate(self.STEPS):
                 self.events.put(('step', index))
                 getattr(self, method)()
+            self.remove_legacy_venv()
             with open(paths.INSTALLED_MARKER, 'w') as f:
-                f.write(requirements_hash())
+                f.write(install_signature())
             self.events.put(('done', None))
         except Exception as e:
-            self.log.write(f'\nERREUR : {e}\n')
-            self.events.put(('error', str(e)))
+            self.log.write(f'\nERREUR : {e!r}\n')
+            message = str(e)
+            if isinstance(e, (urllib.error.URLError, TimeoutError)):
+                message = f'Téléchargement impossible : vérifiez votre connexion Internet.\n({e})'
+            self.events.put(('error', message))
         finally:
             self.log.flush()
+            self.tmp.cleanup()
 
     def execute(self, cmd):
         self.log.write(f'\n> {" ".join(cmd)}\n')
@@ -277,20 +301,72 @@ class Installer(ThemedWindow):
         if process.wait() != 0:
             raise RuntimeError(f'La commande a échoué : {" ".join(cmd)}')
 
-    def create_venv(self):
-        if not os.path.exists(paths.VENV_PYTHON):
-            self.execute(find_python() + ['-m', 'venv', paths.VENV])
+    def download(self, url, sha256, label):
+        """Télécharge un fichier en affichant la progression, puis vérifie son empreinte SHA-256."""
+        target = os.path.join(self.tmp.name, url.rsplit('/', 1)[1])
+        self.log.write(f'\nTéléchargement de {url}\n')
+        digest = hashlib.sha256()
+        with urllib.request.urlopen(url, timeout=60) as response, open(target, 'wb') as out:
+            total = int(response.headers.get('Content-Length') or 0)
+            done = 0
+            while chunk := response.read(256 * 1024):
+                out.write(chunk)
+                digest.update(chunk)
+                done += len(chunk)
+                size = f'{done / 1e6:.1f}'.replace('.', ',')
+                self.events.put(('detail', f'{label} : {size} Mo' + (f' / {total / 1e6:.1f} Mo'.replace('.', ',')
+                                                                       if total else '')))
+        if digest.hexdigest() != sha256:
+            raise RuntimeError(f'Le fichier téléchargé est corrompu ou a été modifié : {url}')
+        return target
+
+    def install_python(self):
+        """Python embarqué dans runtime/ : aucune installation de Python n'est nécessaire sur la machine."""
+        if os.path.isdir(paths.RUNTIME):
+            shutil.rmtree(paths.RUNTIME)
+        archive = self.download(PYTHON_URL, PYTHON_SHA256, f'Python {PYTHON_VERSION}')
+        self.events.put(('detail', 'Décompression…'))
+        with zipfile.ZipFile(archive) as z:
+            z.extractall(paths.RUNTIME)
+        # Le fichier ._pth fixe les chemins de ce Python : on y ajoute le dossier du projet (..)
+        # et on active « site » pour que pip et les composants installés fonctionnent
+        pth = glob.glob(os.path.join(paths.RUNTIME, 'python*._pth'))[0]
+        with open(pth, encoding='utf-8') as f:
+            lines = [line.strip() for line in f]
+        lines = [('import site' if line == '#import site' else line) for line in lines] + ['..']
+        with open(pth, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(lines) + '\n')
+
+        # pip s'installe lui-même depuis son archive, lancé comme module (Windows refuse « archive\pip install pip »)
+        wheel = self.download(PIP_URL, PIP_SHA256, 'pip')
+        bootstrap = ('import runpy, sys; sys.path.insert(0, sys.argv.pop(1)); '
+                     "runpy.run_module('pip', run_name='__main__', alter_sys=True)")
+        self.execute([paths.RUNTIME_PYTHON, '-c', bootstrap, wheel,
+                      'install', '--no-index', '--no-warn-script-location', wheel])
 
     def install_requirements(self):
-        self.execute([paths.VENV_PYTHON, '-m', 'pip', 'install', '--disable-pip-version-check',
-                      '-r', paths.REQUIREMENTS])
+        pip = [paths.RUNTIME_PYTHON, '-m', 'pip', 'install', '--disable-pip-version-check', '--no-warn-script-location']
+        if has_nvidia_gpu():
+            self.events.put(('detail', 'Carte NVIDIA détectée : installation de PyTorch pour CUDA'))
+            try:
+                self.execute(pip + ['torch', 'torchvision', '--index-url', TORCH_CUDA_INDEX])
+            except RuntimeError:
+                self.log.write('\nPyTorch CUDA indisponible : utilisation de la version processeur.\n')
+        self.execute(pip + ['-r', paths.REQUIREMENTS])
 
     def download_model(self):
-        self.execute([paths.VENV_PYTHON, '-c', 'import yolo_detection.detection'])
+        self.execute([paths.RUNTIME_PYTHON, '-c',
+                      'from yolo_detection.detection import DEFAULT_MODEL, get_model; get_model(DEFAULT_MODEL)'])
+
+    def remove_legacy_venv(self):
+        """L'ancienne version installait un environnement .venv : il ne sert plus, on le retire."""
+        if os.path.isfile(os.path.join(paths.LEGACY_VENV, 'pyvenv.cfg')):
+            self.events.put(('detail', 'Suppression de l\'ancien environnement .venv…'))
+            shutil.rmtree(paths.LEGACY_VENV, ignore_errors=True)
 
     def create_shortcut(self):
         target, arguments = ((sys.executable, '') if FROZEN
-                             else (paths.VENV_PYTHONW, '-m yolo_detection.desktop'))
+                             else (paths.RUNTIME_PYTHONW, '-m yolo_detection.desktop'))
         script = ("$s = New-Object -ComObject WScript.Shell;"
                   f"$l = $s.CreateShortcut((Join-Path ([Environment]::GetFolderPath('Desktop')) '{uninstall.SHORTCUT_NAME}'));"
                   f"$l.TargetPath = '{target}'; $l.Arguments = '{arguments}'; $l.WorkingDirectory = '{paths.ROOT}';"

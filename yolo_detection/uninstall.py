@@ -2,8 +2,9 @@
 
 N'utilise que la bibliothèque standard : il est aussi embarqué dans « YOLO Detection.exe ».
 
-Supprimé : l'environnement Python (.venv), le modèle téléchargé (data/models), les journaux (data/logs),
-le raccourci du Bureau (seulement s'il pointe vers ce dossier) et les caches Python générés.
+Supprimé : le Python embarqué (runtime), les modèles téléchargés (data/models), les réglages
+(data/settings.json), les journaux (data/logs), le raccourci du Bureau (seulement s'il pointe vers
+ce dossier) et les caches Python générés.
 Conservé : le code du projet, l'exécutable, les résultats d'analyse (data/results)
 et tout ce qui est hors de ce dossier (Python, cache pip, réglages Ultralytics partagés).
 """
@@ -45,13 +46,22 @@ def find_items(root):
     root = os.path.abspath(root)
     items = []
 
+    runtime = os.path.join(root, 'runtime')
+    if os.path.isfile(os.path.join(runtime, 'python.exe')):
+        items.append(('Python embarqué et composants (runtime)', runtime))
+
+    # Ancienne version : environnement virtuel au lieu du Python embarqué
     venv = os.path.join(root, '.venv')
     if os.path.exists(os.path.join(venv, 'pyvenv.cfg')):
-        items.append(('Environnement Python et composants (.venv)', venv))
+        items.append(('Ancien environnement Python (.venv)', venv))
 
     models = os.path.join(root, 'data', 'models')
     if os.path.isdir(models):
-        items.append(('Modèle YOLO26 téléchargé (data/models)', models))
+        items.append(('Modèles YOLO26 téléchargés (data/models)', models))
+
+    settings = os.path.join(root, 'data', 'settings.json')
+    if os.path.isfile(settings):
+        items.append(('Réglages (data/settings.json)', settings))
 
     shortcut, target = _desktop_shortcut()
     if shortcut and target and os.path.abspath(target).lower().startswith(root.lower() + os.sep):

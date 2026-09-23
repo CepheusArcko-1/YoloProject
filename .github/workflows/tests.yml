@@ -1,0 +1,30 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:  # réutilisé par release.yml avant de publier une version
+
+jobs:
+  tests:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+          cache: pip
+
+      # Le modèle YOLO26 est téléchargé une fois puis gardé en cache entre les exécutions
+      - uses: actions/cache@v4
+        with:
+          path: data/models
+          key: yolo-models-yolo26n
+
+      - name: Installer les composants
+        run: python -m pip install -r requirements.txt
+
+      - name: Lancer les tests
+        run: python -m unittest discover -s tests -v

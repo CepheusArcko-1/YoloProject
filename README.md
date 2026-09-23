@@ -2,85 +2,96 @@
 
 Application de bureau de détection d'objets avec YOLO26 (Ultralytics).
 
-## Utilisation
+## Installation
 
-Prérequis : Python 3.10 ou plus récent (https://www.python.org).
+1. Télécharger la dernière version dans les
+   [Releases](https://github.com/CepheusArcko-1/YoloProject/releases) (`YOLO-Detection-vX.Y.Z.zip`) et la décompresser.
+2. Double-cliquer sur **`YOLO Detection.exe`**.
 
-Double-cliquer sur **`YOLO Detection.exe`**.
+**Rien d'autre à installer, pas même Python.** Au premier lancement, une fenêtre d'installation (quelques minutes)
+télécharge Python et les composants, puis le modèle, et crée un raccourci **YOLO Detection** sur le Bureau.
+Si une carte graphique NVIDIA est présente, la version de PyTorch qui l'utilise est installée automatiquement.
+Les lancements suivants ouvrent directement l'application.
 
-- **Premier lancement** : une fenêtre d'installation s'affiche (quelques minutes). Elle installe les composants,
-  télécharge le modèle et crée un raccourci **YOLO Detection** sur le Bureau.
-- **Lancements suivants** : l'application s'ouvre directement.
+## Fonctionnalités
 
-Dans l'application :
-
-- **Choisir une image** (ou glisser-déposer, ou <kbd>Ctrl</kbd>+<kbd>V</kbd>) : affiche l'image avec les objets
-  détectés, leur nombre par catégorie et leur confiance.
-- **Webcam en direct** : ouvre une fenêtre webcam (touche `q` pour quitter).
-
-## Organisation du projet
-
-```
-YoloProject/
-├── YOLO Detection.exe      Lanceur : installe, ouvre ou désinstalle l'application
-├── requirements.txt        Composants Python installés dans .venv
-├── yolo_detection/         Code de l'application
-│   ├── paths.py            Tous les emplacements de fichiers (voir ci-dessous)
-│   ├── launcher.py         Source de YOLO Detection.exe (installation, lancement, désinstallation)
-│   ├── uninstall.py        Liste et supprime ce que l'installation a ajouté
-│   ├── desktop.py          Fenêtre de l'application (pywebview)
-│   ├── server.py           Serveur de l'interface (Flask)
-│   ├── detection.py        Détection YOLO26 et image annotée
-│   ├── templates/          Interface (index.html)
-│   └── static/             Icône
-└── tests/                  Tests et images de test (tests/images/)
-```
+- **Analyser une ou plusieurs images** : bouton, glisser-déposer (fichiers ou dossiers entiers) ou
+  <kbd>Ctrl</kbd>+<kbd>V</kbd>. Les objets sont encadrés, comptés par catégorie et filtrables par confiance.
+- **Choix du modèle** en haut : *Rapide*, *Équilibré* ou *Précis* (téléchargé à la première sélection).
+  Le matériel utilisé (processeur ou carte graphique) est affiché à côté.
+- **Historique** : toutes les analyses sont conservées, rouvrables et supprimables.
+- **Export CSV** d'une analyse, d'un lot ou de tout l'historique, directement lisible dans Excel.
+- **Webcam en direct** : détection en temps réel dans une fenêtre dédiée (touche `q` pour quitter).
+- Fonctionne **sans Internet** une fois installé.
 
 ## Fichiers créés à l'installation et à l'utilisation
 
-Tout reste **dans le dossier du projet**, à deux endroits (ignorés par git) :
+Tout reste **dans le dossier de l'application** (ces dossiers sont ignorés par git) :
 
 | Emplacement | Contenu | Créé quand | Désinstallation |
 |---|---|---|---|
-| `.venv/` | Environnement Python et composants (~1 Go) | Installation | Supprimé |
-| `data/models/yolo26n.pt` | Modèle YOLO26 | Installation | Supprimé |
-| `data/logs/installation.log` | Journal de l'installation | Installation | Supprimé |
-| `data/logs/application.log` | Journal de l'application | Chaque lancement | Supprimé |
-| `data/results/` | Vos analyses : image, image annotée (`_annotated.jpg`) et JSON | Chaque analyse | **Conservé** |
+| `runtime/` | Python embarqué et composants (~1 Go) | Installation | Supprimé |
+| `data/models/` | Modèles YOLO26 | Installation, puis au choix d'un autre modèle | Supprimé |
+| `data/settings.json` | Modèle choisi | Au premier changement de modèle | Supprimé |
+| `data/logs/` | Journaux d'installation et d'exécution | Installation, chaque lancement | Supprimé |
+| `data/results/<analyse>/` | Une analyse : image d'origine, image annotée, miniature, `analysis.json` | Chaque analyse | **Conservé** |
 
-Hors du dossier du projet, un seul élément : le raccourci **YOLO Detection** sur le Bureau (supprimé à la
-désinstallation). Les téléchargements de pip passent par son cache habituel (`%LOCALAPPDATA%\pip\Cache`),
-partagé avec vos autres projets et donc laissé en place.
+Hors du dossier, un seul élément : le raccourci **YOLO Detection** sur le Bureau (supprimé à la désinstallation).
 
 ## Désinstallation
 
 Dans l'application : menu **⋯** en haut à droite → **Désinstaller l'application…**
-(ou lancer `"YOLO Detection.exe" --uninstall`).
+(ou lancer `"YOLO Detection.exe" --uninstall`). La liste exacte de ce qui sera supprimé est affichée avant
+confirmation. Vos analyses (`data/results`) sont conservées. Pour réinstaller, relancer `YOLO Detection.exe`.
 
-La liste exacte de ce qui sera supprimé est affichée avant confirmation (voir le tableau ci-dessus).
-Sont conservés : le code du projet, `YOLO Detection.exe`, vos analyses (`data/results`), Python et les
-réglages Ultralytics partagés (`%APPDATA%\Ultralytics`). Pour réinstaller, relancer `YOLO Detection.exe`.
+## Organisation du code
+
+```
+YoloProject/
+├── requirements.txt         Composants installés dans runtime/
+├── .github/workflows/       Tests automatiques et publication des versions
+├── yolo_detection/
+│   ├── paths.py             Tous les emplacements de fichiers
+│   ├── launcher.py          Source de YOLO Detection.exe (installation, lancement, désinstallation)
+│   ├── uninstall.py         Liste et supprime ce que l'installation a ajouté
+│   ├── desktop.py           Fenêtre de l'application (pywebview)
+│   ├── server.py            Serveur de l'interface (Flask)
+│   ├── detection.py         Modèles YOLO26, carte graphique, images annotées, webcam
+│   ├── history.py           Historique des analyses et export CSV
+│   ├── labels.py            Noms français des catégories
+│   ├── templates/           Page de l'interface
+│   └── static/              Style, script, icône et police Inter (embarquée)
+└── tests/                   Tests et images de test
+```
 
 ## Pour les développeurs
 
-Lancer les tests :
+Après une première installation (qui crée `runtime/`) :
 
 ```bash
-.venv\Scripts\python -m unittest discover -s tests -v
+runtime\python.exe -m unittest discover -s tests -v
 ```
-
-Lancer la version navigateur (http://127.0.0.1:5000) :
 
 ```bash
-.venv\Scripts\python -m yolo_detection.server
+runtime\python.exe -m yolo_detection.server
 ```
 
-Recompiler `YOLO Detection.exe` après une modification de `launcher.py`, `uninstall.py` ou `paths.py`
-(avec un Python qui inclut tkinter) :
+La seconde commande lance la version navigateur sur http://127.0.0.1:5000.
+
+**Publier une version** : GitHub Actions lance les tests, compile `YOLO Detection.exe` et publie l'archive
+dans les Releases dès qu'une étiquette de version est poussée :
 
 ```bash
-py -m pip install pyinstaller
+git tag v1.0.0
 ```
+
+```bash
+git push origin v1.0.0
+```
+
+Les tests tournent aussi automatiquement à chaque push sur `main` et à chaque pull request.
+
+Compiler l'exécutable en local (avec un Python qui inclut tkinter) :
 
 ```bash
 py -m PyInstaller --onefile --noconsole --icon yolo_detection/static/icon.ico --name "YOLO Detection" --paths . --distpath . yolo_detection/launcher.py

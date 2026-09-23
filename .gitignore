@@ -1,14 +1,17 @@
 # Python
 __pycache__/
 *.py[cod]
+.venv/
 
 # IDE
 .idea/
 
 # Généré par l'installation et l'application (voir yolo_detection/paths.py)
-.venv/
+runtime/
 data/
 
-# Compilation PyInstaller
+# Exécutable : compilé et publié par GitHub Actions (voir .github/workflows/release.yml)
+/YOLO Detection.exe
 build/
+dist/
 *.spec

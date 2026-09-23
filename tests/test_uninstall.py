@@ -15,9 +15,10 @@ class UninstallTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.root = self.tmp.name
-        self.write('.venv/pyvenv.cfg', 'home = x')
-        self.write('.venv/Lib/site-packages/paquet.py', 'x' * 100)
+        self.write('runtime/python.exe', 'python')
+        self.write('runtime/Lib/site-packages/paquet.py', 'x' * 100)
         self.write('data/models/yolo26n.pt', 'modele')
+        self.write('data/settings.json', '{}')
         self.write('data/logs/installation.log', 'log')
         self.write('yolo_detection/__pycache__/server.cpython.pyc', 'x')
         # À conserver
@@ -38,8 +39,13 @@ class UninstallTest(unittest.TestCase):
     def test_lists_only_installed_items(self):
         paths = {os.path.relpath(path, self.root) for _, path, _ in uninstall.find_items(self.root)}
         # Le raccourci du Bureau pointe vers le vrai projet, pas vers ce faux projet : il n'est pas listé
-        self.assertEqual(paths, {'.venv', os.path.join('data', 'models'), os.path.join('data', 'logs'),
-                                 os.path.join('yolo_detection', '__pycache__')})
+        self.assertEqual(paths, {'runtime', os.path.join('data', 'models'), os.path.join('data', 'settings.json'),
+                                 os.path.join('data', 'logs'), os.path.join('yolo_detection', '__pycache__')})
+
+    def test_lists_legacy_venv(self):
+        self.write('.venv/pyvenv.cfg', 'home = x')
+        paths = {os.path.relpath(path, self.root) for _, path, _ in uninstall.find_items(self.root)}
+        self.assertIn('.venv', paths)
 
     def test_remove_keeps_project_and_results(self):
         for _, path, _ in uninstall.find_items(self.root):
@@ -50,9 +56,12 @@ class UninstallTest(unittest.TestCase):
                                             os.path.join('data', 'results', 'mon_image.jpg'),
                                             os.path.join('tests', 'test_app.py')]))
 
-    def test_venv_without_pyvenv_cfg_is_ignored(self):
-        os.remove(os.path.join(self.root, '.venv', 'pyvenv.cfg'))
+    def test_folders_that_are_not_ours_are_ignored(self):
+        # Un dossier « runtime » sans python.exe, ou « .venv » sans pyvenv.cfg, n'a pas été créé par l'application
+        os.remove(os.path.join(self.root, 'runtime', 'python.exe'))
+        self.write('.venv/autre.txt', 'x')
         paths = {os.path.relpath(path, self.root) for _, path, _ in uninstall.find_items(self.root)}
+        self.assertNotIn('runtime', paths)
         self.assertNotIn('.venv', paths)
 
     def test_format_size(self):
