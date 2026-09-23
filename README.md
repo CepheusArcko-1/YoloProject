@@ -1,27 +1,33 @@
 # YoloProject
 
-Application web Flask de détection d'objets avec YOLO26 (Ultralytics).
+Application de bureau de détection d'objets avec YOLO26 (Ultralytics).
 
-## Installation
+## Installation (une seule fois)
 
-Python 3.10 ou plus récent (testé avec 3.13).
+Prérequis : Python 3.10 ou plus récent (https://www.python.org).
+
+Double-cliquer sur **`installer.bat`**. Il crée l'environnement Python, installe les dépendances
+et ajoute un raccourci **YOLO Detection** sur le Bureau et dans ce dossier.
+
+## Utilisation
+
+Double-cliquer sur le raccourci **YOLO Detection**. L'application s'ouvre dans sa propre fenêtre :
+
+- **Analyser une image…** : choisir une image, l'application affiche l'image annotée et la liste des objets détectés.
+  Les résultats (image annotée et JSON) sont enregistrés dans `static/results/` (créé automatiquement).
+- **Détection webcam en direct** : ouvre une fenêtre webcam (touche `q` pour quitter).
+
+Le modèle `yolo26n.pt` est téléchargé automatiquement au premier lancement.
+En cas de problème, les messages de l'application sont dans `application.log`.
+
+## Tests
+
+Double-cliquer sur **`tester.bat`** pour vérifier que la détection fonctionne.
+
+## Pour les développeurs
+
+Lancer la version navigateur (http://127.0.0.1:5000) avec rechargement automatique :
 
 ```bash
-py -3.13 -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
+.venv\Scripts\python app.py
 ```
-
-Les poids du modèle (`yolo26n.pt`) sont téléchargés automatiquement au premier lancement.
-
-## Lancement
-
-```bash
-python app.py
-```
-
-Puis ouvrir http://127.0.0.1:5000.
-
-- **Detect Objects in Image** : envoie une image, affiche l'image annotée et la liste des objets détectés.
-  Les résultats (image annotée et JSON) sont enregistrés dans `static/results/`.
-- **Start Real-Time Video Detection** : ouvre une fenêtre webcam sur la machine qui exécute le serveur (touche `q` pour quitter).

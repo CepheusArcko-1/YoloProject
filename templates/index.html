@@ -1,31 +1,65 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
     <meta charset="utf-8">
     <title>YOLO26 Object Detection</title>
+    <style>
+        body { font-family: "Segoe UI", sans-serif; margin: 0; background: #f4f5f7; color: #1f2328; }
+        header { background: #1f2328; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 600; }
+        main { max-width: 900px; margin: 24px auto; padding: 0 16px; }
+        .card { background: #fff; border-radius: 8px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+        .actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+        button { background: #0969da; color: #fff; border: 0; border-radius: 6px; padding: 10px 16px; font-size: 14px; cursor: pointer; }
+        button.secondary { background: #6e7781; }
+        button:disabled { opacity: .6; cursor: wait; }
+        img { max-width: 100%; border-radius: 6px; }
+        ul { padding-left: 20px; }
+        #status { color: #6e7781; }
+    </style>
 </head>
 <body>
-    <h1>YOLO26 Object Detection</h1>
-    <form method="post" enctype="multipart/form-data">
-        <input type="file" name="image" accept="image/*" required>
-        <button type="submit">Detect Objects in Image</button>
-    </form>
+    <header>YOLO26 Object Detection</header>
+    <main>
+        <div class="card actions">
+            <form id="upload" method="post" enctype="multipart/form-data">
+                <input id="file" type="file" name="image" accept="image/*" hidden>
+                <button type="button" onclick="document.getElementById('file').click()">Analyser une image…</button>
+            </form>
+            <button class="secondary" id="webcam" type="button">Détection webcam en direct</button>
+            <span id="status"></span>
+        </div>
 
-    <form action="/start-video" method="get">
-        <button type="submit">Start Real-Time Video Detection</button>
-    </form>
+        {% if image %}
+        <div class="card">
+            <img src="{{ url_for('uploaded_file', filename=image) }}">
+            <h3>Objets détectés</h3>
+            <ul>
+            {% for d in detections %}
+                <li>{{ d['class'] }} ({{ '%.0f' % (d['confidence'] * 100) }}%)</li>
+            {% else %}
+                <li>Aucun objet détecté</li>
+            {% endfor %}
+            </ul>
+            <p><a href="{{ url_for('uploaded_file', filename=json_file) }}" target="_blank">Voir le JSON</a></p>
+        </div>
+        {% endif %}
+    </main>
 
-    {% if image %}
-        <h2>Results:</h2>
-        <img src="{{ url_for('uploaded_file', filename=image) }}" width="600">
-        <ul>
-        {% for d in detections %}
-            <li>{{ d['class'] }} ({{ '%.0f' % (d['confidence'] * 100) }}%)</li>
-        {% else %}
-            <li>Aucun objet détecté</li>
-        {% endfor %}
-        </ul>
-        <p><a href="{{ url_for('uploaded_file', filename=json_file) }}" target="_blank">View JSON Results</a></p>
-    {% endif %}
+    <script>
+        const status = document.getElementById('status');
+        document.getElementById('file').addEventListener('change', e => {
+            if (!e.target.files.length) return;
+            status.textContent = 'Analyse en cours…';
+            document.getElementById('upload').submit();
+        });
+        document.getElementById('webcam').addEventListener('click', async e => {
+            e.target.disabled = true;
+            status.textContent = 'Webcam ouverte — appuyez sur « q » dans sa fenêtre pour arrêter.';
+            try { await fetch('/start-video'); } finally {
+                e.target.disabled = false;
+                status.textContent = '';
+            }
+        });
+    </script>
 </body>
 </html>
